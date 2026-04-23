@@ -2,6 +2,8 @@ module github.com/example/starter-api
 
 go 1.24
 
+toolchain go1.24.4
+
 require (
 	github.com/MicahParks/jwkset v0.8.0
 	github.com/MicahParks/keyfunc/v3 v3.3.10

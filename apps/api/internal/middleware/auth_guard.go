@@ -19,7 +19,8 @@ type AuthGuardOptions struct {
 // (`$AUTH_URL/.well-known/jwks.json`). Keys are cached and refreshed in the
 // background by `keyfunc`.
 type AuthGuard struct {
-	jwks keyfunc.Keyfunc
+	jwks   keyfunc.Keyfunc
+	issuer string
 }
 
 // User is the subject extracted from a verified access token. Fields mirror
@@ -40,7 +41,8 @@ type userContextKey struct{}
 // NewAuthGuard panics if the JWKS cannot be fetched at cold-start — the API
 // is useless without it, so fail fast.
 func NewAuthGuard(authURL string) *AuthGuard {
-	jwksURL := strings.TrimRight(authURL, "/") + "/.well-known/jwks.json"
+	issuer := strings.TrimRight(authURL, "/")
+	jwksURL := issuer + "/.well-known/jwks.json"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -49,7 +51,7 @@ func NewAuthGuard(authURL string) *AuthGuard {
 	if err != nil {
 		log.Fatalf("auth guard: failed to load JWKS from %s: %v", jwksURL, err)
 	}
-	return &AuthGuard{jwks: jwks}
+	return &AuthGuard{jwks: jwks, issuer: issuer}
 }
 
 func (ag *AuthGuard) Middleware(options *AuthGuardOptions) fiber.Handler {
@@ -77,6 +79,12 @@ func (ag *AuthGuard) Middleware(options *AuthGuardOptions) fiber.Handler {
 			log.Printf("auth guard: token verification failed: %v", err)
 			return unauth(c, "Invalid token")
 		}
+		if user.ID == "" {
+			if optional {
+				return c.Next()
+			}
+			return unauth(c, "missing subject id")
+		}
 
 		c.Locals(userContextKey{}, user)
 		return c.Next()
@@ -90,7 +98,15 @@ func GetUser(c *fiber.Ctx) (*User, bool) {
 }
 
 func (ag *AuthGuard) verify(tokenStr string) (*User, error) {
-	parsed, err := jwt.Parse(tokenStr, ag.jwks.Keyfunc)
+	parsed, err := jwt.Parse(
+		tokenStr,
+		ag.jwks.Keyfunc,
+		jwt.WithValidMethods([]string{"RS256"}),
+		jwt.WithIssuer(ag.issuer),
+		jwt.WithExpirationRequired(),
+		jwt.WithLeeway(30*time.Second),
+		// TODO: add jwt.WithAudience("api") once issuer mints aud claims
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +115,12 @@ func (ag *AuthGuard) verify(tokenStr string) (*User, error) {
 	}
 	claims, ok := parsed.Claims.(jwt.MapClaims)
 	if !ok {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+
+	// OpenAuth tags tokens with `type` ("access" vs "refresh"). Refresh tokens
+	// must never be accepted as bearer credentials.
+	if asString(claims["type"]) != "access" {
 		return nil, jwt.ErrTokenInvalidClaims
 	}
 

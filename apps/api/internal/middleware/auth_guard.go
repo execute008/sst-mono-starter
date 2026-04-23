@@ -120,10 +120,12 @@ func (ag *AuthGuard) Middleware(options *AuthGuardOptions) fiber.Handler {
 			return unauth(c, "Unauthorized")
 		}
 
-		token := strings.TrimPrefix(header, "Bearer ")
-		if token == header {
+		// RFC 6750 §2.1: the "Bearer" auth-scheme token is case-insensitive.
+		const prefix = "Bearer "
+		if len(header) < len(prefix) || !strings.EqualFold(header[:len(prefix)], prefix) {
 			return unauth(c, "Invalid authorization header format")
 		}
+		token := strings.TrimSpace(header[len(prefix):])
 
 		user, err := ag.verify(token)
 		if err != nil {

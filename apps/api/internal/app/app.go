@@ -29,7 +29,11 @@ func New(cfg *config.Config) *fiber.App {
 	})
 
 	app.Use(recover.New())
-	app.Use(logger.New())
+	// Explicit format prevents future logger upgrades from auto-including
+	// headers (notably Authorization) in access logs.
+	app.Use(logger.New(logger.Config{
+		Format: "${time} ${status} - ${latency} ${method} ${path}\n",
+	}))
 	if cfg.AllowedOrigins != "" {
 		app.Use(cors.New(cors.Config{
 			AllowOrigins: cfg.AllowedOrigins,

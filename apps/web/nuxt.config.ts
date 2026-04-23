@@ -12,7 +12,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiUrl: "",
-      stage: "",
+      assetsBaseUrl: "",
+      // stage: "" — intentionally dropped; infra stopped exporting NUXT_PUBLIC_STAGE.
     },
   },
   // Conservative-but-permissive baseline security headers. The CSP allows

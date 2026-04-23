@@ -1,7 +1,6 @@
 <script setup lang="ts">
-const config = useRuntimeConfig();
-const stage = config.public.stage;
 const { base, apiUseFetch } = useApi();
+const { base: assetsBase } = useAssets();
 
 const { data: health } = await apiUseFetch<{ status: string; stage: string }>(
   "/v2/health",
@@ -12,8 +11,9 @@ const { data: health } = await apiUseFetch<{ status: string; stage: string }>(
 <template>
   <main>
     <h1>sst-mono-starter</h1>
-    <p>Stage: {{ stage }}</p>
+    <p>Stage: {{ health?.stage }}</p>
     <p>API: {{ base.toString() }}</p>
+    <p>Assets: {{ assetsBase.toString() }}</p>
     <p>Health: {{ health?.status }}</p>
   </main>
 </template>

@@ -29,13 +29,10 @@ func New(cfg *config.Config) *fiber.App {
 		}))
 	}
 
-	authGuard, err := middleware.NewAuthGuard(cfg.AuthURL)
-	if err != nil {
-		log.Fatalf("auth guard: %v", err)
-	}
-
 	v2 := app.Group("/v2")
 
+	// Health is registered before constructing the auth guard so liveness
+	// checks still respond if the issuer's JWKS endpoint is unreachable.
 	v2.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",
@@ -43,6 +40,15 @@ func New(cfg *config.Config) *fiber.App {
 			"service": "starter-api",
 		})
 	})
+
+	authGuard, err := middleware.NewAuthGuard(cfg.AuthURL)
+	if err != nil {
+		log.Printf("auth guard: cold-start failed, fail-closed mode: %v", err)
+		stub := middleware.FailClosedGuard(err)
+		v2.Get("/me", stub, handlers.GetMe)
+		v2.Get("/public", stub, handlers.GetPublic)
+		return app
+	}
 
 	v2.Get("/me", authGuard.Middleware(&middleware.AuthGuardOptions{Optional: false}), handlers.GetMe)
 	v2.Get("/public", authGuard.Middleware(&middleware.AuthGuardOptions{Optional: true}), handlers.GetPublic)

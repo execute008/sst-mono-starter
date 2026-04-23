@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/MicahParks/jwkset"
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -67,11 +69,43 @@ func NewAuthGuard(authURL string) (*AuthGuard, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{jwksURL})
+	// Build the JWKS storage with an explicit 5m refresh so key rotations
+	// propagate quickly without relying on jwkset's hour-long default.
+	storage, err := jwkset.NewStorageFromHTTP(jwksURL, jwkset.HTTPClientStorageOptions{
+		Ctx:                       context.Background(),
+		NoErrorReturnFirstHTTPReq: false,
+		RefreshErrorHandler: func(ctx context.Context, err error) {
+			slog.Default().ErrorContext(ctx, "auth guard: JWKS refresh failed", "url", jwksURL, "error", err)
+		},
+		RefreshInterval: 5 * time.Minute,
+	})
 	if err != nil {
-		log.Fatalf("auth guard: failed to load JWKS from %s: %v", jwksURL, err)
+		return nil, fmt.Errorf("auth guard: failed to load JWKS from %s: %w", jwksURL, err)
+	}
+	client, err := jwkset.NewHTTPClient(jwkset.HTTPClientOptions{
+		HTTPURLs: map[string]jwkset.Storage{jwksURL: storage},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("auth guard: failed to build JWKS client: %w", err)
+	}
+	jwks, err := keyfunc.New(keyfunc.Options{Ctx: ctx, Storage: client})
+	if err != nil {
+		return nil, fmt.Errorf("auth guard: failed to load JWKS from %s: %w", jwksURL, err)
 	}
 	return &AuthGuard{jwks: jwks, issuer: issuer}, nil
+}
+
+// FailClosedGuard returns a middleware that rejects every request with 503.
+// Used when the auth guard cannot be constructed at cold start so protected
+// routes refuse traffic instead of silently allowing it through.
+func FailClosedGuard(cause error) fiber.Handler {
+	msg := "auth unavailable"
+	if cause != nil {
+		log.Printf("auth guard: fail-closed mode active: %v", cause)
+	}
+	return func(c *fiber.Ctx) error {
+		return fiber.NewError(fiber.StatusServiceUnavailable, msg)
+	}
 }
 
 func (ag *AuthGuard) Middleware(options *AuthGuardOptions) fiber.Handler {

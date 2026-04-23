@@ -3,6 +3,7 @@ module github.com/example/starter-api
 go 1.24
 
 require (
+	github.com/MicahParks/jwkset v0.8.0
 	github.com/MicahParks/keyfunc/v3 v3.3.10
 	github.com/aws/aws-lambda-go v1.50.0
 	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
@@ -11,7 +12,6 @@ require (
 )
 
 require (
-	github.com/MicahParks/jwkset v0.8.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect

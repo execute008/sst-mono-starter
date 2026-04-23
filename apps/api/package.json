@@ -1,0 +1,13 @@
+{
+  "name": "@starter/api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Go/Fiber serverless API (SST Lambda)",
+  "scripts": {
+    "build": "make build-lambda",
+    "clean": "make clean",
+    "test": "make test",
+    "fmt": "make fmt",
+    "tidy": "make tidy"
+  }
+}

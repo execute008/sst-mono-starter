@@ -12,6 +12,7 @@ type Config struct {
 	RateLimitTableName string
 	PublicAssetsBucket string
 	AWSRegion          string
+	AllowedOrigins     string
 }
 
 func Load() *Config {
@@ -37,5 +38,6 @@ func Load() *Config {
 		RateLimitTableName: os.Getenv("RATE_LIMIT_TABLE_NAME"),
 		PublicAssetsBucket: os.Getenv("PUBLIC_ASSETS_BUCKET"),
 		AWSRegion:          region,
+		AllowedOrigins:     os.Getenv("ALLOWED_ORIGINS"),
 	}
 }

@@ -19,11 +19,13 @@ func New(cfg *config.Config) *fiber.App {
 
 	app.Use(recover.New())
 	app.Use(logger.New())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
-	}))
+	if cfg.AllowedOrigins != "" {
+		app.Use(cors.New(cors.Config{
+			AllowOrigins: cfg.AllowedOrigins,
+			AllowHeaders: "Content-Type, Authorization",
+			AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		}))
+	}
 
 	authGuard := middleware.NewAuthGuard(cfg.AuthURL)
 

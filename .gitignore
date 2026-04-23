@@ -1,0 +1,38 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# bun
+bun.lockb
+
+# SST
+.sst/
+sst-env.d.ts
+
+# builds
+dist/
+.output/
+.nuxt/
+.turbo/
+bootstrap
+apps/api/bootstrap
+apps/api/bin/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+
+# go
+vendor/

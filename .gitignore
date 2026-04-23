@@ -3,8 +3,8 @@ node_modules/
 .pnp
 .pnp.js
 
-# bun
-bun.lockb
+# bun — keep the lockfile checked in for reproducible builds
+# (do NOT ignore bun.lock or bun.lockb)
 
 # SST
 .sst/

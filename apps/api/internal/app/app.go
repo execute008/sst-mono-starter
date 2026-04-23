@@ -17,6 +17,11 @@ import (
 func New(cfg *config.Config) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: customErrorHandler,
+		// API Gateway terminates TLS and rewrites the source IP into
+		// X-Forwarded-For; trust it so c.IP() reflects the real client.
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"0.0.0.0/0"},
+		ProxyHeader:             fiber.HeaderXForwardedFor,
 	})
 
 	app.Use(recover.New())

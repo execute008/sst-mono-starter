@@ -85,5 +85,10 @@ func customErrorHandler(c *fiber.Ctx, err error) error {
 		code = e.Code
 		message = e.Message
 	}
+	// Never echo internal failure detail back to clients — server-side errors
+	// can leak file paths, library names, or stack frames.
+	if code >= 500 {
+		message = "Internal Server Error"
+	}
 	return c.Status(code).JSON(fiber.Map{"error": message})
 }

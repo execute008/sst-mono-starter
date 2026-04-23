@@ -2,12 +2,14 @@ package app
 
 import (
 	"log"
+	"time"
 
 	"github.com/example/starter-api/internal/config"
 	"github.com/example/starter-api/internal/handlers"
 	"github.com/example/starter-api/internal/middleware"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 )
@@ -17,6 +19,8 @@ import (
 func New(cfg *config.Config) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: customErrorHandler,
+		// Cap request bodies to limit cheap DoS via giant payloads on Lambda.
+		BodyLimit: 256 * 1024,
 		// API Gateway terminates TLS and rewrites the source IP into
 		// X-Forwarded-For; trust it so c.IP() reflects the real client.
 		EnableTrustedProxyCheck: true,
@@ -35,6 +39,19 @@ func New(cfg *config.Config) *fiber.App {
 	}
 
 	v2 := app.Group("/v2")
+
+	// Per-IP throttle on every public-facing /v2 route. Sits in front of the
+	// auth guard so unauthenticated bursts can't pin the JWKS path either.
+	v2.Use(limiter.New(limiter.Config{
+		Max:        60,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.Context().RemoteIP().String()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "rate limit exceeded"})
+		},
+	}))
 
 	// Health is registered before constructing the auth guard so liveness
 	// checks still respond if the issuer's JWKS endpoint is unreachable.

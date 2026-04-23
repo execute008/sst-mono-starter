@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,10 +40,28 @@ type Contact struct {
 
 type userContextKey struct{}
 
-// NewAuthGuard panics if the JWKS cannot be fetched at cold-start — the API
-// is useless without it, so fail fast.
-func NewAuthGuard(authURL string) *AuthGuard {
+// NewAuthGuard fetches the JWKS at cold start. Returns an error so the
+// caller can decide whether to fail fast or fall back to a fail-closed stub.
+func NewAuthGuard(authURL string) (*AuthGuard, error) {
 	issuer := strings.TrimRight(authURL, "/")
+
+	// Reject plaintext issuer URLs unless they resolve to a loopback host —
+	// JWKS over plain HTTP is a downgrade vector for token forgery.
+	u, err := url.Parse(issuer)
+	if err != nil {
+		return nil, fmt.Errorf("auth guard: invalid AUTH_URL %q: %w", authURL, err)
+	}
+	switch u.Scheme {
+	case "https":
+	case "http":
+		host := u.Hostname()
+		if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+			return nil, fmt.Errorf("auth guard: AUTH_URL must use https outside localhost (got %q)", authURL)
+		}
+	default:
+		return nil, fmt.Errorf("auth guard: AUTH_URL must be http(s) (got scheme %q)", u.Scheme)
+	}
+
 	jwksURL := issuer + "/.well-known/jwks.json"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -51,7 +71,7 @@ func NewAuthGuard(authURL string) *AuthGuard {
 	if err != nil {
 		log.Fatalf("auth guard: failed to load JWKS from %s: %v", jwksURL, err)
 	}
-	return &AuthGuard{jwks: jwks, issuer: issuer}
+	return &AuthGuard{jwks: jwks, issuer: issuer}, nil
 }
 
 func (ag *AuthGuard) Middleware(options *AuthGuardOptions) fiber.Handler {

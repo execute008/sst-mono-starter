@@ -1,6 +1,8 @@
 package app
 
 import (
+	"log"
+
 	"github.com/example/starter-api/internal/config"
 	"github.com/example/starter-api/internal/handlers"
 	"github.com/example/starter-api/internal/middleware"
@@ -27,7 +29,10 @@ func New(cfg *config.Config) *fiber.App {
 		}))
 	}
 
-	authGuard := middleware.NewAuthGuard(cfg.AuthURL)
+	authGuard, err := middleware.NewAuthGuard(cfg.AuthURL)
+	if err != nil {
+		log.Fatalf("auth guard: %v", err)
+	}
 
 	v2 := app.Group("/v2")
 

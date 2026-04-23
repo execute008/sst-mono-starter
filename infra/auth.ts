@@ -41,6 +41,14 @@ export const auth = new sst.aws.Auth("Auth", {
     link: [authTable],
     environment: {
       STAGE: $app.stage,
+      // Gates the dev-mode OTP logger in apps/auth/src/index.ts. Must never
+      // be "1" on shared stages — `$dev` is only true under `sst dev`.
+      AUTH_DEV_LOG_CODES: $dev ? "1" : "0",
+      // Comma-separated list of origins the issuer is allowed to redirect
+      // back to after auth. Set via env at deploy time.
+      ALLOWED_REDIRECT_ORIGINS: process.env.ALLOWED_REDIRECT_ORIGINS ?? "",
+      // Client registry. Format: "id=uri1,uri2;id2=uri1"
+      AUTH_CLIENTS: process.env.AUTH_CLIENTS ?? "",
     },
   },
   ...(HAS_CUSTOM_DOMAIN ? { domain: AUTH_DOMAIN } : {}),

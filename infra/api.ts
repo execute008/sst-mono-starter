@@ -85,6 +85,10 @@ export const api = new sst.aws.Function("Api", {
     RATE_LIMIT_TABLE_NAME: rateLimitTable.name,
     PUBLIC_ASSETS_BUCKET: publicAssetsBucket.name,
     PRIVATE_ASSETS_BUCKET: privateAssetsBucket.name,
+    // Comma-separated list of origins the API's CORS middleware trusts.
+    // Empty string disables CORS headers (fail-closed). Read by the Go
+    // middleware in apps/api/internal/app/app.go via cfg.AllowedOrigins.
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ?? "",
   },
   // M-Inf2: shorter timeout caps cost on a Slowloris-style abuse and matches
   // what a sync REST handler should ever need. If you add streaming or

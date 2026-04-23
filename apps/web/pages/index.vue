@@ -1,11 +1,11 @@
 <script setup lang="ts">
 const config = useRuntimeConfig();
-const apiUrl = config.public.apiUrl;
 const stage = config.public.stage;
+const { base, apiUseFetch } = useApi();
 
-const { data: health } = await useFetch<{ status: string; stage: string }>(
-  () => `${apiUrl}/v2/health`,
-  { server: false, lazy: true, default: () => ({ status: "loading", stage: "" }) }
+const { data: health } = await apiUseFetch<{ status: string; stage: string }>(
+  "/v2/health",
+  { server: false, lazy: true, default: () => ({ status: "loading", stage: "" }) },
 );
 </script>
 
@@ -13,7 +13,7 @@ const { data: health } = await useFetch<{ status: string; stage: string }>(
   <main>
     <h1>sst-mono-starter</h1>
     <p>Stage: {{ stage }}</p>
-    <p>API: {{ apiUrl }}</p>
+    <p>API: {{ base.toString() }}</p>
     <p>Health: {{ health?.status }}</p>
   </main>
 </template>
